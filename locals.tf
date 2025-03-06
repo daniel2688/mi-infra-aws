@@ -1,11 +1,11 @@
 locals {
-    name_prefix = "${var.environment}-${var.project}"  # Prefijo común para todos los nombres.
+  name_prefix = "${var.environment}-${var.project}" # Prefijo común para todos los nombres.
 
   # Nombre de vpc    
-    vpc_name = "vpc-${local.name_prefix}"
+  vpc_name = "vpc-${local.name_prefix}"
 
   # Nombre de igw
-    igw_name = "igw-${local.name_prefix}"
+  igw_name = "igw-${local.name_prefix}"
 
   # Nombres de subredes
   subnet_names = {
@@ -22,6 +22,13 @@ locals {
     public_1  = "rt-public-${local.name_prefix}"
     private_1 = "rt-private-${local.name_prefix}"
   }
-}
 
+  # Nombres de grupos de seguridad
+  security_group_names = {
+    public = "sg_public_${var.environment}_${var.project}"
+  }
+
+  # Puertos permitidos
+  ingress_ports = [80, 8080, 443, 9090, 22] # Puertos permitidos para el grupo de seguridad.
+}
 

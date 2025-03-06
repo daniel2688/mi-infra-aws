@@ -23,10 +23,10 @@ resource "aws_subnet" "public" {
   vpc_id                  = aws_vpc.main.id
   cidr_block              = each.value.cidr_block
   availability_zone       = each.value.availability_zone
-  map_public_ip_on_launch = true  # Solo para subredes públicas.
+  map_public_ip_on_launch = true # Solo para subredes públicas.
 
   tags = {
-    Name = local.subnet_names[each.value.name_key]  # Usa la clave para obtener el nombre.
+    Name = local.subnet_names[each.value.name_key] # Usa la clave para obtener el nombre.
   }
 }
 
@@ -40,7 +40,7 @@ resource "aws_subnet" "private" {
   # map_public_ip_on_launch no se define (por defecto es false).
 
   tags = {
-    Name = local.subnet_names[each.value.name_key]  # Usa la clave para obtener el nombre.
+    Name = local.subnet_names[each.value.name_key] # Usa la clave para obtener el nombre.
   }
 }
 
@@ -49,15 +49,15 @@ resource "aws_route_table" "public" {
   vpc_id = aws_vpc.main.id
 
   tags = {
-    Name = local.route_table_names["public_1"]  # Usa la clave para obtener el nombre.
+    Name = local.route_table_names["public_1"] # Usa la clave para obtener el nombre.
   }
 }
 
 # Ruta para permitir el acceso a Internet desde las subredes públicas
 resource "aws_route" "public_internet_access" {
   route_table_id         = aws_route_table.public.id
-  destination_cidr_block = "0.0.0.0/0"  # Tráfico destinado a cualquier dirección IP.
-  gateway_id             = aws_internet_gateway.main.id  # Usa el Internet Gateway creado anteriormente.
+  destination_cidr_block = "0.0.0.0/0"                  # Tráfico destinado a cualquier dirección IP.
+  gateway_id             = aws_internet_gateway.main.id # Usa el Internet Gateway creado anteriormente.
 }
 
 # Tabla de rutas privada
@@ -65,7 +65,7 @@ resource "aws_route_table" "private" {
   vpc_id = aws_vpc.main.id
 
   tags = {
-    Name = local.route_table_names["private_1"]  # Usa la clave para obtener el nombre.
+    Name = local.route_table_names["private_1"] # Usa la clave para obtener el nombre.
   }
 }
 
@@ -84,3 +84,30 @@ resource "aws_route_table_association" "private" {
   subnet_id      = each.value.id
   route_table_id = aws_route_table.private.id
 }
+
+# Grupo de seguridad
+resource "aws_security_group" "allow_tls_ipv4" {
+  name        = local.security_group_names["public"]
+  description = "Permite trafico en los puertos indicados"
+  vpc_id      = aws_vpc.main.id
+
+  # Dynamic block para las reglas de ingreso
+  dynamic "ingress" {
+    for_each = local.ingress_ports
+    content {
+      from_port   = ingress.value
+      to_port     = ingress.value
+      protocol    = "tcp"
+      cidr_blocks = ["0.0.0.0/0"]
+    }
+  }
+  # Reglas de egreso (opcional)
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+

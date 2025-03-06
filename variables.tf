@@ -28,7 +28,7 @@ variable "public_subnets" {
   type = list(object({
     cidr_block        = string
     availability_zone = string
-    name_key          = string  # Clave para buscar el nombre en `local.subnet_names`.
+    name_key          = string # Clave para buscar el nombre en `local.subnet_names`.
   }))
 }
 
@@ -37,6 +37,6 @@ variable "private_subnets" {
   type = list(object({
     cidr_block        = string
     availability_zone = string
-    name_key          = string  # Clave para buscar el nombre en `local.subnet_names`.
+    name_key          = string # Clave para buscar el nombre en `local.subnet_names`.
   }))
 }
