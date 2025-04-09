@@ -1,113 +1,73 @@
-# Creacion de vpc en AWS
-resource "aws_vpc" "main" {
-  cidr_block = "10.0.0.0/16" # Define el bloque CIDR para el VPC.
+resource "aws_instance" "ec2_instance" {
+  ami                         = data.aws_ami.amzn_linx.id
+  instance_type               = var.instancetype
+  key_name                    = "public-key" # Reemplaza con tu clave pública
+  count                       = 1
+  iam_instance_profile        = aws_iam_instance_profile.role_profile.name
+  subnet_id                   = aws_subnet.public[0].id
+  associate_public_ip_address = true
+  vpc_security_group_ids      = [aws_security_group.allow_tls_ipv4.id]
 
   tags = {
-    Name = local.vpc_name # Asigna el nombre del VPC usando una etiqueta.
+    Name = "${var.ec2_names[count.index]}" # Usa el nombre de la lista de nombres de instancias
   }
-}
 
-# Creacion de Internet Gateway
-resource "aws_internet_gateway" "main" {
-  vpc_id = aws_vpc.main.id
+  depends_on = [aws_iam_role.ssm_access, aws_iam_policy_attachment.attachment]
 
-  tags = {
-    Name = local.igw_name # Asigna el nombre del Internet Gateway usando una etiqueta.
+  lifecycle {
+    ignore_changes = [ tags ]
   }
-}
 
-# Subredes públicas
-resource "aws_subnet" "public" {
-  for_each = { for idx, subnet in var.public_subnets : idx => subnet }
+  provisioner "remote-exec" {
+    inline = [
+      "sudo yum update -y",
+      "sudo yum install -y httpd",
+      "sudo systemctl enable httpd",
+      "sudo systemctl start httpd"
+    ]
 
-  vpc_id                  = aws_vpc.main.id
-  cidr_block              = each.value.cidr_block
-  availability_zone       = each.value.availability_zone
-  map_public_ip_on_launch = true # Solo para subredes públicas.
-
-  tags = {
-    Name = local.subnet_names[each.value.name_key] # Usa la clave para obtener el nombre.
-  }
-}
-
-# Subredes privadas
-resource "aws_subnet" "private" {
-  for_each = { for idx, subnet in var.private_subnets : idx => subnet }
-
-  vpc_id            = aws_vpc.main.id
-  cidr_block        = each.value.cidr_block
-  availability_zone = each.value.availability_zone
-  # map_public_ip_on_launch no se define (por defecto es false).
-
-  tags = {
-    Name = local.subnet_names[each.value.name_key] # Usa la clave para obtener el nombre.
-  }
-}
-
-# Tabla de rutas pública
-resource "aws_route_table" "public" {
-  vpc_id = aws_vpc.main.id
-
-  tags = {
-    Name = local.route_table_names["public_1"] # Usa la clave para obtener el nombre.
-  }
-}
-
-# Ruta para permitir el acceso a Internet desde las subredes públicas
-resource "aws_route" "public_internet_access" {
-  route_table_id         = aws_route_table.public.id
-  destination_cidr_block = "0.0.0.0/0"                  # Tráfico destinado a cualquier dirección IP.
-  gateway_id             = aws_internet_gateway.main.id # Usa el Internet Gateway creado anteriormente.
-}
-
-# Tabla de rutas privada
-resource "aws_route_table" "private" {
-  vpc_id = aws_vpc.main.id
-
-  tags = {
-    Name = local.route_table_names["private_1"] # Usa la clave para obtener el nombre.
-  }
-}
-
-# Asociaciones de tablas de rutas para subredes públicas
-resource "aws_route_table_association" "public" {
-  for_each = aws_subnet.public
-
-  subnet_id      = each.value.id
-  route_table_id = aws_route_table.public.id
-}
-
-# Asociaciones de tablas de rutas para subredes privadas
-resource "aws_route_table_association" "private" {
-  for_each = aws_subnet.private
-
-  subnet_id      = each.value.id
-  route_table_id = aws_route_table.private.id
-}
-
-# Grupo de seguridad
-resource "aws_security_group" "allow_tls_ipv4" {
-  name        = local.security_group_names["public"]
-  description = "Permite trafico en los puertos indicados"
-  vpc_id      = aws_vpc.main.id
-
-  # Dynamic block para las reglas de ingreso
-  dynamic "ingress" {
-    for_each = local.ingress_ports
-    content {
-      from_port   = ingress.value
-      to_port     = ingress.value
-      protocol    = "tcp"
-      cidr_blocks = ["0.0.0.0/0"]
+    connection {
+      type        = "ssh"
+      user        = "ec2-user" # Cambia si usas otro usuario
+      private_key = file("/mnt/c/Users/LENOVO/Downloads/public-key.pem") # Asegúrate de tener tu clave privada configurada correctamente
+      host        = self.public_ip
     }
   }
-  # Reglas de egreso (opcional)
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
+
+  # lifecycle {
+  #   create_before_destroy = true
+  # }
+
+  # lifecycle {
+  #   prevent_destroy = true
+  # }
 }
 
+resource "aws_iam_instance_profile" "role_profile" {
+  name = "SSMFullAccessProfile"
+  role = aws_iam_role.ssm_access.name
+}
+
+resource "aws_iam_role" "ssm_access" {
+  name = upper(join("-", ["SSMFullAccessRole", "ec2"])) # Nombre del rol
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Sid    = ""
+        Principal = {
+          Service = "ec2.amazonaws.com"
+        }
+      },
+    ]
+  })
+}
+
+resource "aws_iam_policy_attachment" "attachment" {
+  name       = "my-ssm-policy-attachment"
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMFullAccess" # Asegúrate de que este ARN sea el correcto
+  roles      = [aws_iam_role.ssm_access.name]
+}
 

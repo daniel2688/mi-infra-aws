@@ -46,3 +46,9 @@ private_subnets = [
     name_key          = "private_4" # Clave para `local.subnet_names`.
   }
 ]
+
+instancetype = "t2.micro"
+
+sub_public = "subnet-public"
+
+sub_private = "subnet-private"

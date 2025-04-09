@@ -40,3 +40,26 @@ variable "private_subnets" {
     name_key          = string # Clave para buscar el nombre en `local.subnet_names`.
   }))
 }
+
+variable "instancetype" {
+  description = "Tipo de instancia EC2"
+  type        = string
+}
+
+variable "ec2_names" {
+  type    = list(string)
+  default = ["ec2-instance-1", "ec2-instance-2", "ec2-instance-3"]
+}
+
+variable "sub_public" {
+  description = "Subredes públicas"
+  type        = string
+  default     = "subnet-public" # Clave para `local.subnet_names`.
+  
+}
+
+variable "sub_private" {
+  description = "Subredes privadas"
+  type        = string
+  default     = "subnet-private" # Clave para `local.subnet_names`.
+}
