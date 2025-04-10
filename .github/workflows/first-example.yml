@@ -55,9 +55,9 @@ jobs:
       - name: Terraform Apply
         run: terraform apply -auto-approve -var="private_key_path=public-key.pem"
 
-      # Paso de sleep para esperar 2 minutos antes de destruir los recursos
-      - name: Wait for 2 minutes
-        run: sleep 120
+      # Paso de sleep para esperar 5 minutos antes de destruir los recursos
+      - name: Wait for 5 minutes
+        run: sleep 300  # Sleep de 5 minutos (300 segundos)
 
       # Paso para destruir la infraestructura siempre, sin importar el resultado anterior
       - name: Terraform Destroy

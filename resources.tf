@@ -1,65 +1,77 @@
-name: Deploy Infra to AWS
+resource "aws_instance" "ec2_instance" {
+  ami                         = data.aws_ami.amzn_linx.id
+  instance_type               = var.instancetype
+  key_name                    = "public-key" # Reemplaza con tu clave pública
+  count                       = 1
+  iam_instance_profile        = aws_iam_instance_profile.role_profile.name
+  subnet_id                   = aws_subnet.public[0].id
+  associate_public_ip_address = true
+  vpc_security_group_ids      = [aws_security_group.allow_tls_ipv4.id]
 
-on:
-  push:
-    branches:
-      - main
+  tags = {
+    Name = "${var.ec2_names[count.index]}" # Usa el nombre de la lista de nombres de instancias
+  }
 
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
+  depends_on = [aws_iam_role.ssm_access, aws_iam_policy_attachment.attachment]
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+  lifecycle {
+    ignore_changes = [tags]
+  }
 
-      - name: Set up Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.5.7
+  provisioner "remote-exec" {
+    inline = [
+      "sudo yum update -y",
+      "sudo yum install -y httpd",
+      "sudo systemctl enable httpd",
+      "sudo systemctl start httpd"
+    ]
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
+    connection {
+      type        = "ssh"
+      user        = "ec2-user"                 # Cambia si usas otro usuario
+      private_key = file(var.private_key_path) # Asegúrate de tener tu clave privada configurada correctamente
+      host        = self.public_ip
+    }
+  }
 
-      # 💡 Decodificamos la clave privada guardada como secret en base64
-      - name: Decode private key
-        run: |
-          echo "${{ secrets.EC2_PRIVATE_KEY_B64 }}" | base64 -d > public-key.pem
-          chmod 600 public-key.pem
+  # lifecycle {
+  #   create_before_destroy = true
+  # }
 
-      # Instalamos Checkov para análisis de vulnerabilidad
-      - name: Install Checkov
-        run: |
-          python -m pip install --upgrade pip
-          pip install checkov
+  # lifecycle {
+  #   prevent_destroy = true
+  # }
+}
 
-      # Ejecutamos Checkov para análisis de vulnerabilidades en Terraform
-      - name: Run Checkov - Terraform security scan
-        run: checkov -d . --skip-check CKV_AWS_19 --soft-fail
+resource "aws_iam_instance_profile" "role_profile" {
+  name = "SSMFullAccessProfile"
+  role = aws_iam_role.ssm_access.name
+}
 
-      - name: Terraform Init
-        run: terraform init
+resource "aws_iam_role" "ssm_access" {
+  name = upper(join("-", ["SSMFullAccessRole", "ec2"])) # Nombre del rol
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Sid    = ""
+        Principal = {
+          Service = "ec2.amazonaws.com"
+        }
+      },
+    ]
+  })
 
-      - name: Terraform Plan
-        run: terraform plan -var="private_key_path=public-key.pem"
+  # lifecycle {
+  #   ignore_changes = [name]
+  # }
+}
 
-      # Paso para destruir recursos antes de crear (si es necesario)
-      - name: Terraform Destroy (clean up existing resources)
-        if: always()  # Este paso se ejecutará siempre, incluso si falla terraform plan
-        run: terraform destroy -auto-approve -var="private_key_path=public-key.pem"
+resource "aws_iam_policy_attachment" "attachment" {
+  name       = "my-ssm-policy-attachment"
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMFullAccess" # Asegúrate de que este ARN sea el correcto
+  roles      = [aws_iam_role.ssm_access.name]
+}
 
-      - name: Terraform Apply
-        run: terraform apply -auto-approve -var="private_key_path=public-key.pem"
-
-      # Paso de sleep para esperar 5 minutos antes de destruir los recursos
-      - name: Wait for 5 minutes
-        run: sleep 300  # Sleep de 5 minutos (300 segundos)
-
-      # Paso para destruir la infraestructura siempre, sin importar el resultado anterior
-      - name: Terraform Destroy
-        if: always()  # Este paso se ejecutará siempre, independientemente de si falla o tiene éxito
-        run: terraform destroy -auto-approve -var="private_key_path=public-key.pem"
