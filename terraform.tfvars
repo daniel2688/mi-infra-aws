@@ -52,3 +52,6 @@ instancetype = "t2.micro"
 sub_public = "subnet-public"
 
 sub_private = "subnet-private"
+
+# terraform.tfvars
+private_key_path = "/mnt/c/Users/LENOVO/Downloads/public-key.pem"

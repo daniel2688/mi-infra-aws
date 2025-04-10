@@ -29,7 +29,7 @@ resource "aws_instance" "ec2_instance" {
     connection {
       type        = "ssh"
       user        = "ec2-user" # Cambia si usas otro usuario
-      private_key = file("/mnt/c/Users/LENOVO/Downloads/public-key.pem") # Asegúrate de tener tu clave privada configurada correctamente
+      private_key = file(var.private_key_path) # Asegúrate de tener tu clave privada configurada correctamente
       host        = self.public_ip
     }
   }

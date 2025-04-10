@@ -63,3 +63,8 @@ variable "sub_private" {
   type        = string
   default     = "subnet-private" # Clave para `local.subnet_names`.
 }
+
+variable "private_key_path" {
+  description = "Ruta local al archivo de clave privada para conexión SSH"
+  type        = string
+}
