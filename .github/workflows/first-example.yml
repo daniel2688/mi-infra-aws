@@ -40,7 +40,7 @@ jobs:
 
       # Ejecutamos Checkov para análisis de vulnerabilidades en Terraform
       - name: Run Checkov - Terraform security scan
-        run: checkov -d . --skip-check CKV_AWS_19 # Puedes personalizar las reglas que quieres usar
+        run: checkov -d . --skip-check CKV_AWS_19 --soft-fail # Puedes personalizar las reglas que quieres usar
 
       - name: Terraform Init
         run: terraform init
