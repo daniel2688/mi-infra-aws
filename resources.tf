@@ -15,7 +15,7 @@ resource "aws_instance" "ec2_instance" {
   depends_on = [aws_iam_role.ssm_access, aws_iam_policy_attachment.attachment]
 
   lifecycle {
-    ignore_changes = [ tags ]
+    ignore_changes = [tags]
   }
 
   provisioner "remote-exec" {
@@ -28,7 +28,7 @@ resource "aws_instance" "ec2_instance" {
 
     connection {
       type        = "ssh"
-      user        = "ec2-user" # Cambia si usas otro usuario
+      user        = "ec2-user"                 # Cambia si usas otro usuario
       private_key = file(var.private_key_path) # Asegúrate de tener tu clave privada configurada correctamente
       host        = self.public_ip
     }
@@ -62,10 +62,11 @@ resource "aws_iam_role" "ssm_access" {
         }
       },
     ]
-    
-  ignore_changes = [ name ]
-  
   })
+
+  lifecycle {
+    ignore_changes = [name]
+  }
 }
 
 resource "aws_iam_policy_attachment" "attachment" {

@@ -55,7 +55,7 @@ variable "sub_public" {
   description = "Subredes públicas"
   type        = string
   default     = "subnet-public" # Clave para `local.subnet_names`.
-  
+
 }
 
 variable "sub_private" {
