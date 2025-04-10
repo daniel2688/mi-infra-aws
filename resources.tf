@@ -62,6 +62,9 @@ resource "aws_iam_role" "ssm_access" {
         }
       },
     ]
+    
+  ignore_changes = [ name ]
+  
   })
 }
 
